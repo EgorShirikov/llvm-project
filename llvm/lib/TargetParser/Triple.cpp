@@ -86,6 +86,7 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case x86_64:         return "x86_64";
   case xcore:          return "xcore";
   case xtensa:         return "xtensa";
+  case may:            return "may";
   }
 
   llvm_unreachable("Invalid ArchType!");
@@ -208,6 +209,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case dxil:        return "dx";
 
   case xtensa:      return "xtensa";
+
+  case may:         return "may";
   }
 }
 
@@ -428,6 +431,7 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("loongarch64", loongarch64)
     .Case("dxil", dxil)
     .Case("xtensa", xtensa)
+    .Case("may", may)
     .Default(UnknownArch);
 }
 
@@ -887,6 +891,7 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::thumbeb:
   case Triple::ve:
   case Triple::xcore:
+  case Triple::may:
   case Triple::xtensa:
     return Triple::ELF;
 
@@ -1482,6 +1487,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::wasm32:
   case llvm::Triple::x86:
   case llvm::Triple::xcore:
+  case llvm::Triple::may:
   case llvm::Triple::xtensa:
     return 32;
 
@@ -1574,6 +1580,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::wasm32:
   case Triple::x86:
   case Triple::xcore:
+  case Triple::may:
   case Triple::xtensa:
     // Already 32-bit.
     break;
@@ -1627,6 +1634,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::tcele:
   case Triple::xcore:
   case Triple::xtensa:
+  case Triple::may:
     T.setArch(UnknownArch);
     break;
 
@@ -1729,6 +1737,7 @@ Triple Triple::getBigEndianArchVariant() const {
   case Triple::xcore:
   case Triple::ve:
   case Triple::csky:
+  case Triple::may:
   case Triple::xtensa:
 
   // ARM is intentionally unsupported here, changing the architecture would
@@ -1840,6 +1849,7 @@ bool Triple::isLittleEndian() const {
   case Triple::x86:
   case Triple::x86_64:
   case Triple::xcore:
+  case Triple::may:
   case Triple::xtensa:
     return true;
   default:
