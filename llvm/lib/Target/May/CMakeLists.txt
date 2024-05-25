@@ -1,7 +1,14 @@
 add_llvm_component_group(May)
 
+set(LLVM_TARGET_DEFINITIONS May.td)
+
+tablegen(LLVM MayGenRegisterInfo.inc -gen-register-info)
+
+add_public_tablegen_target(MayCommonTableGen)
+
 add_llvm_target(MayCodeGen
         MayTargetMachine.cpp
+        MayRegisterInfo.cpp
 
         LINK_COMPONENTS
         CodeGen

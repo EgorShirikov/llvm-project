@@ -8,5 +8,4 @@ add_llvm_component_library(LLVMMayDesc
 
         ADD_TO_COMPONENT
         May
-
 )
