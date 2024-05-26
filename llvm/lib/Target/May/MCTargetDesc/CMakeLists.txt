@@ -1,5 +1,7 @@
 add_llvm_component_library(LLVMMayDesc
         MayMCTargetDesc.cpp
+        MayInstPrinter.cpp
+        MayMCAsmInfo.cpp
 
         LINK_COMPONENTS
         MC

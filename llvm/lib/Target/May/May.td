@@ -1,6 +1,7 @@
 include "llvm/Target/Target.td"
 include "MayRegisterInfo.td"
 include "MayInstrInfo.td"
+include "MayCallingConvention.td"
 
 class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, NoItineraries, Features>;

@@ -1,6 +1,7 @@
 #include "MaySubtarget.h"
 #include "May.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -10,8 +11,9 @@ using namespace llvm;
 #define GET_SUBTARGETINFO_CTOR
 #include "MayGenSubtargetInfo.inc"
 
-MaySubtarget::MaySubtarget(const StringRef &CPU, const StringRef &TuneCPU,
-                             const StringRef &FS, const TargetMachine &TM)
-    : MayGenSubtargetInfo(TM.getTargetTriple(), CPU, TuneCPU, FS) {
-  MAY_DUMP_CYAN
-}
+void MaySubtarget::anchor() {}
+
+MaySubtarget::MaySubtarget(const Triple &TT, const std::string &CPU,
+                             const std::string &FS, const TargetMachine &TM)
+    : MayGenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), InstrInfo(),
+      FrameLowering(*this), TLInfo(TM, *this) {}

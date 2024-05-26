@@ -3,6 +3,7 @@
 
 #include "MCTargetDesc/MayMCTargetDesc.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 
 #define MAY_DUMP(Color)                                                        \
   {                                                                            \
@@ -17,5 +18,27 @@
 #define MAY_DUMP_CYAN MAY_DUMP(llvm::raw_ostream::CYAN)
 #define MAY_DUMP_MAGENTA MAY_DUMP(llvm::raw_ostream::MAGENTA)
 #define MAY_DUMP_WHITE MAY_DUMP(llvm::raw_ostream::WHITE)
+
+namespace llvm {
+  class MayTargetMachine;
+  class FunctionPass;
+  class MaySubtarget;
+  class AsmPrinter;
+  class InstructionSelector;
+  class MCInst;
+  class MCOperand;
+  class MachineInstr;
+  class MachineOperand;
+  class PassRegistry;
+
+  bool lowerMayMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
+                                    AsmPrinter &AP);
+  bool LowerMayMachineOperandToMCOperand(const MachineOperand &MO,
+                                         MCOperand &MCOp, const AsmPrinter &AP);
+
+  FunctionPass *createMayISelDag(MayTargetMachine &TM);
+
+} // namespace llvm
+
 
 #endif // LLVM_LIB_TARGET_May_May_H

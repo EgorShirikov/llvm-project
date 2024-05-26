@@ -1,5 +1,5 @@
 //===----------------------------------------------------------------------===//
-//  Describe Sim instructions format
+//  Describe May instructions format
 //
 //  CPU INSTRUCTION FORMATS
 //
