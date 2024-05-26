@@ -4,6 +4,7 @@ set(LLVM_TARGET_DEFINITIONS May.td)
 
 tablegen(LLVM MayGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM MayGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM MayGenSubtargetInfo.inc -gen-subtarget)
 
 add_public_tablegen_target(MayCommonTableGen)
 
@@ -11,6 +12,7 @@ add_llvm_target(MayCodeGen
         MayTargetMachine.cpp
         MayRegisterInfo.cpp
         MayInstrInfo.cpp
+        MaySubtarget.cpp
 
         LINK_COMPONENTS
         CodeGen
