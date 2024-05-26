@@ -7,4 +7,7 @@
 #define GET_REGINFO_ENUM
 #include "MayGenRegisterInfo.inc"
 
+#define GET_INSTRINFO_ENUM
+#include "MayGenInstrInfo.inc"
+
 #endif
