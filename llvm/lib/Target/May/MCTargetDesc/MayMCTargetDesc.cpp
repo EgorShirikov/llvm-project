@@ -77,15 +77,19 @@ static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMayTargetMC() {
   MAY_DUMP_MAGENTA
   Target &TheMayTarget = getTheMayTarget();
-  RegisterMCAsmInfoFn X(TheMayTarget, createMayMCAsmInfo);
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheMayTarget, createMayMCRegisterInfo);
   TargetRegistry::RegisterMCInstrInfo(TheMayTarget, createMayMCInstrInfo);
   TargetRegistry::RegisterMCSubtargetInfo(TheMayTarget, createMayMCSubtargetInfo);
+  RegisterMCAsmInfoFn X(TheMayTarget, createMayMCAsmInfo);
   // Register the MCInstPrinter
   TargetRegistry::RegisterMCInstPrinter(TheMayTarget, createMayMCInstPrinter);
   TargetRegistry::RegisterAsmTargetStreamer(TheMayTarget,
                                             createTargetAsmStreamer);
+  // Register the MC Code Emitter.
+  TargetRegistry::RegisterMCCodeEmitter(TheMayTarget, createMayMCCodeEmitter);
+  // Register the asm backend.
+  TargetRegistry::RegisterMCAsmBackend(TheMayTarget, createMayAsmBackend);
 }
 
 

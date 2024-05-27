@@ -9,6 +9,7 @@ tablegen(LLVM MayGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM MayGenMCPseudoLowering.inc -gen-pseudo-lowering)
 tablegen(LLVM MayGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MayGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM MayGenMCCodeEmitter.inc -gen-emitter)
 
 add_public_tablegen_target(MayCommonTableGen)
 

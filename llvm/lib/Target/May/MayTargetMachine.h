@@ -22,6 +22,10 @@ public:
 
   ~MayTargetMachine() override;
 
+  const MaySubtarget *getSubtargetImpl(const Function &) const override {
+    return &Subtarget;
+  }
+
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();

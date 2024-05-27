@@ -3,6 +3,10 @@ add_llvm_component_library(LLVMMayDesc
         MayInstPrinter.cpp
         MayMCAsmInfo.cpp
 
+        MayMCCodeEmitter.cpp
+        MayAsmBackend.cpp
+        MayELFObjectWriter.cpp
+
         LINK_COMPONENTS
         MC
         Support
