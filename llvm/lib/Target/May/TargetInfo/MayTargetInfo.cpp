@@ -8,6 +8,6 @@ Target &llvm::getTheMayTarget() {
 }
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMayTargetInfo() {
-  RegisterTarget<Triple::may> X(getTheMayTarget(), "May", "May 32",
-                                 "May");
+  RegisterTarget<Triple::may> X(getTheMayTarget(), "may", "May 32",
+                                 "MAY");
 }

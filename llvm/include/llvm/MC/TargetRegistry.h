@@ -32,6 +32,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include "iostream"
 
 namespace llvm {
 
@@ -1156,6 +1157,7 @@ template <Triple::ArchType TargetArchType = Triple::UnknownArch,
 struct RegisterTarget {
   RegisterTarget(Target &T, const char *Name, const char *Desc,
                  const char *BackendName) {
+    std::cout << *Name;
     TargetRegistry::RegisterTarget(T, Name, Desc, BackendName, &getArchMatch,
                                    HasJIT);
   }

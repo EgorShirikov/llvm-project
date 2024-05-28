@@ -1,10 +1,10 @@
 #include "MayISelLowering.h"
-#include "MCTargetDesc/MayInfo.h"
 #include "May.h"
 #include "MayMachineFunctionInfo.h"
 #include "MayRegisterInfo.h"
 #include "MaySubtarget.h"
 #include "MayTargetMachine.h"
+#include "MCTargetDesc/MayInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsMay.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
@@ -29,13 +30,13 @@ using namespace llvm;
 static const MCPhysReg ArgGPRs[] = {May::R0, May::R1, May::R2, May::R3};
 
 void MayTargetLowering::ReplaceNodeResults(SDNode *N,
-                                            SmallVectorImpl<SDValue> &Results,
-                                            SelectionDAG &DAG) const {
+                                           SmallVectorImpl<SDValue> &Results,
+                                           SelectionDAG &DAG) const {
   llvm_unreachable("");
 }
 
 MayTargetLowering::MayTargetLowering(const TargetMachine &TM,
-                                       const MaySubtarget &STI)
+                                     const MaySubtarget &STI)
     : TargetLowering(TM), STI(STI) {
   addRegisterClass(MVT::i32, &May::GPRRegClass);
 
@@ -60,6 +61,7 @@ MayTargetLowering::MayTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BR_CC, MVT::i32, Custom);
 
   setOperationAction(ISD::FRAMEADDR, MVT::i32, Legal);
+  setOperationAction(ISD::INTRINSIC_VOID, MVT::i32, Custom);
   // setOperationAction(ISD::FrameIndex, MVT::i32, Custom);
   // setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
 }
@@ -91,7 +93,7 @@ static Align getPrefTypeAlign(EVT VT, SelectionDAG &DAG) {
 
 // TODO: rewrite
 SDValue MayTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
-                                      SmallVectorImpl<SDValue> &InVals) const {
+                                     SmallVectorImpl<SDValue> &InVals) const {
   SelectionDAG &DAG = CLI.DAG;
   SDLoc &DL = CLI.DL;
   SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
@@ -527,10 +529,10 @@ bool MayTargetLowering::CanLowerReturn(
 // TODO: rewrite
 SDValue
 MayTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
-                                bool IsVarArg,
-                                const SmallVectorImpl<ISD::OutputArg> &Outs,
-                                const SmallVectorImpl<SDValue> &OutVals,
-                                const SDLoc &DL, SelectionDAG &DAG) const {
+                               bool IsVarArg,
+                               const SmallVectorImpl<ISD::OutputArg> &Outs,
+                               const SmallVectorImpl<SDValue> &OutVals,
+                               const SDLoc &DL, SelectionDAG &DAG) const {
   const MachineFunction &MF = DAG.getMachineFunction();
   const MaySubtarget &STI = MF.getSubtarget<MaySubtarget>();
 
@@ -573,7 +575,7 @@ MayTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 //===----------------------------------------------------------------------===//
 
 SDValue MayTargetLowering::PerformDAGCombine(SDNode *N,
-                                              DAGCombinerInfo &DCI) const {
+                                             DAGCombinerInfo &DCI) const {
   // TODO: advanced opts
   return {};
 }
@@ -586,9 +588,9 @@ SDValue MayTargetLowering::PerformDAGCombine(SDNode *N,
 /// target, for a load/store of the specified type.
 // TODO: verify
 bool MayTargetLowering::isLegalAddressingMode(const DataLayout &DL,
-                                               const AddrMode &AM, Type *Ty,
-                                               unsigned AS,
-                                               Instruction *I) const {
+                                              const AddrMode &AM, Type *Ty,
+                                              unsigned AS,
+                                              Instruction *I) const {
   // No global is ever allowed as a base.
   if (AM.BaseGV)
     return false;

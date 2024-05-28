@@ -45,3 +45,20 @@ class MayPseudoInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 }
+
+//intrinsics
+
+def PUTPIXEL : MayInst<0xF0, (outs), (ins GPR:$r1, GPR:$r2, GPR:$r3_imm),
+                      "PUTPIXEL $r1 $r2 $r3_imm", [(int_may_putpixel GPR:$r1, GPR:$r2, GPR:$r3_imm)]>;
+
+let r1 = 0, r2 = 0, r3_imm = 0 in
+def FLUSH : MayInst<0xF1, (outs), (ins), "FLUSH", [(int_may_flush)]>;
+
+let r1 = 0, r2 = 0, r3_imm = 0 in
+def INIT  : MayInst<0xF4, (outs), (ins), "INIT", [(int_may_init)]>;
+
+let r1 = 0, r2 = 0, r3_imm = 0 in
+def EXIT  : MayInst<0xF4, (outs), (ins), "EXIT", [(int_may_exit)]>;
+
+let r1 = 0, r2 = 0, r3_imm = 0 in
+def EVENT  : MayInst<0xF4, (outs), (ins), "EVENT", [(int_may_event)]>;

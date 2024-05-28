@@ -1,0 +1,6 @@
+BUILTIN(simPutPixel, "vUiUiUi", "nc")
+BUILTIN(simFlush, "v", "nc")
+BUILTIN(simInit, "v", "nc")
+BUILTIN(simEvent, "v", "nc")
+BUILTIN(simExit, "v", "nc")
+#undef BUILTIN

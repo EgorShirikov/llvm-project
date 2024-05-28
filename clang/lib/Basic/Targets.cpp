@@ -35,6 +35,7 @@
 #include "Targets/RISCV.h"
 #include "Targets/SPIR.h"
 #include "Targets/Sparc.h"
+#include "Targets/May.h"
 #include "Targets/SystemZ.h"
 #include "Targets/TCE.h"
 #include "Targets/VE.h"
@@ -514,6 +515,9 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
     default:
       return std::make_unique<SparcV9TargetInfo>(Triple, Opts);
     }
+
+  case llvm::Triple::may:
+    return std::make_unique<MayTargetInfo>(Triple, Opts);
 
   case llvm::Triple::systemz:
     switch (os) {
