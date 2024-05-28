@@ -15,7 +15,6 @@ namespace llvm {
 /// MAYFunctionInfo - This class is derived from MachineFunction private
 /// MAY target-specific information for each MachineFunction.
 class MayFunctionInfo : public MachineFunctionInfo {
-  virtual void anchor();
 
   bool ReturnStackOffsetSet = false;
   unsigned ReturnStackOffset = -1U;

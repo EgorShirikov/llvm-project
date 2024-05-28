@@ -24,8 +24,34 @@ void MayFrameLowering::determineCalleeSaves(MachineFunction &MF,
   // Unconditionally spill RA and FP only if the function uses a frame
   // pointer.
   if (hasFP(MF)) {
-    SavedRegs.set(May::R0);
-    SavedRegs.set(May::R2);
+    SavedRegs.set(May::RA);
+    SavedRegs.set(May::FP);
+  }
+  // Mark BP as used if function has dedicated base pointer.
+  if (hasBP(MF))
+    SavedRegs.set(May::BP);
+}
+
+// TODO: Build insns
+void MayFrameLowering::adjustReg(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator MBBI,
+                                  const DebugLoc &DL, Register DestReg,
+                                  Register SrcReg, int64_t Val,
+                                  MachineInstr::MIFlag Flag) const {
+  // MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  const MayInstrInfo *TII = STI.getInstrInfo();
+
+  if (DestReg == SrcReg && Val == 0)
+    return;
+
+  if (isInt<16>(Val)) {
+    BuildMI(MBB, MBBI, DL, TII->get(May::ADDI), DestReg)
+        .addReg(SrcReg)
+        .addImm(Val)
+        .setMIFlag(Flag);
+  } else {
+    // alloc vreg, load imm, add
+    llvm_unreachable("");
   }
 }
 
@@ -38,13 +64,109 @@ void MayFrameLowering::adjustStackToMatchRecords(
 // TODO: seems ok
 void MayFrameLowering::emitPrologue(MachineFunction &MF,
                                      MachineBasicBlock &MBB) const {
-  return;
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  auto *FI = MF.getInfo<MayFunctionInfo>();
+  const MayRegisterInfo *RI = STI.getRegisterInfo();
+  MachineBasicBlock::iterator MBBI = MBB.begin();
+
+  Register FPReg = May::FP;
+  Register SPReg = May::SP;
+
+  // Debug location must be unknown since the first debug location is used
+  // to determine the end of the prologue.
+  DebugLoc DL;
+
+  uint64_t StackSize = alignTo(MFI.getStackSize(), getStackAlign());
+  MFI.setStackSize(StackSize);
+
+  if (!isInt<16>(StackSize)) {
+    llvm_unreachable("Stack offs won't fit in May::LDi");
+  }
+
+  // Early exit if there is no need to allocate on the stack
+  if (StackSize == 0 && !MFI.adjustsStack())
+    return;
+
+  // Allocate space on the stack if necessary.
+  adjustReg(MBB, MBBI, DL, SPReg, SPReg, -StackSize, MachineInstr::FrameSetup);
+
+  const auto &CSI = MFI.getCalleeSavedInfo();
+
+  // The frame pointer is callee-saved, and code has been generated for us to
+  // save it to the stack. We need to skip over the storing of callee-saved
+  // registers as the frame pointer must be modified after it has been saved
+  // to the stack, not before.
+  // FIXME: assumes exactly one instruction is used to save each callee-saved
+  // register.
+  std::advance(MBBI, CSI.size());
+
+  if (!hasFP(MF)) {
+    return;
+  }
+
+  // Generate new FP.
+  adjustReg(MBB, MBBI, DL, FPReg, SPReg, StackSize - FI->getVarArgsSaveSize(),
+            MachineInstr::FrameSetup);
+
+  if (RI->hasStackRealignment(MF)) {
+    llvm_unreachable(""); // TODO: realigned stack
+  }
 }
 
 // TODO: seems ok
 void MayFrameLowering::emitEpilogue(MachineFunction &MF,
                                      MachineBasicBlock &MBB) const {
-  return;
+  const MayRegisterInfo *RI = STI.getRegisterInfo();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  auto *UFI = MF.getInfo<MayFunctionInfo>();
+  Register FPReg = May::FP;
+  Register SPReg = May::SP;
+
+  // Get the insert location for the epilogue. If there were no terminators in
+  // the block, get the last instruction.
+  MachineBasicBlock::iterator MBBI = MBB.end();
+  DebugLoc DL;
+  if (!MBB.empty()) {
+    MBBI = MBB.getFirstTerminator();
+    if (MBBI == MBB.end())
+      MBBI = MBB.getLastNonDebugInstr();
+    DL = MBBI->getDebugLoc();
+
+    // If this is not a terminator, the actual insert location should be after
+    // the last instruction.
+    if (!MBBI->isTerminator())
+      MBBI = std::next(MBBI);
+
+    // TODO: is it necessary?
+    while (MBBI != MBB.begin() &&
+           std::prev(MBBI)->getFlag(MachineInstr::FrameDestroy))
+      --MBBI;
+  }
+
+  const auto &CSI = MFI.getCalleeSavedInfo();
+
+  // Skip to before the restores of callee-saved registers
+  // FIXME: assumes exactly one instruction is used to restore each
+  // callee-saved register.
+  auto LastFrameDestroy = MBBI;
+  if (!CSI.empty())
+    LastFrameDestroy = std::prev(MBBI, CSI.size());
+
+  uint64_t StackSize = MFI.getStackSize();
+  uint64_t FPOffset = StackSize - UFI->getVarArgsSaveSize();
+
+  // Restore the stack pointer using the value of the frame pointer. Only
+  // necessary if the stack pointer was modified, meaning the stack size is
+  // unknown.
+  if (RI->hasStackRealignment(MF) || MFI.hasVarSizedObjects()) {
+    llvm_unreachable("");
+    assert(hasFP(MF) && "frame pointer should not have been eliminated");
+    adjustReg(MBB, LastFrameDestroy, DL, SPReg, FPReg, -FPOffset,
+              MachineInstr::FrameDestroy);
+  }
+
+  // Deallocate stack
+  adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackSize, MachineInstr::FrameDestroy);
 }
 
 // TODO: seems ok
@@ -53,7 +175,6 @@ bool MayFrameLowering::spillCalleeSavedRegisters(
     ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI) const {
   if (CSI.empty())
     return true;
-
   MachineFunction *MF = MBB.getParent();
   const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
 
@@ -62,7 +183,7 @@ bool MayFrameLowering::spillCalleeSavedRegisters(
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
     TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
-                            RC, TRI, 0);
+                            RC, TRI, Register());
   }
 
   return true;
@@ -83,20 +204,82 @@ bool MayFrameLowering::restoreCalleeSavedRegisters(
   for (auto &CS : reverse(CSI)) {
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI, 0);
+    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI,
+                             Register());
     assert(MI != MBB.begin() && "loadRegFromStackSlot didn't insert any code!");
   }
 
   return true;
 }
 
+void MayFrameLowering::processFunctionBeforeFrameFinalized(
+    MachineFunction &MF, RegScavenger *RS) const {
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  auto *UFI = MF.getInfo<MayFunctionInfo>();
+  return;
+
+  if (MFI.getCalleeSavedInfo().empty()) {
+    UFI->setCalleeSavedStackSize(0);
+    return;
+  }
+
+  unsigned Size = 0;
+  for (const auto &Info : MFI.getCalleeSavedInfo()) {
+    int FrameIdx = Info.getFrameIdx();
+    if (MFI.getStackID(FrameIdx) != TargetStackID::Default)
+      continue;
+
+    Size += MFI.getObjectSize(FrameIdx);
+  }
+  UFI->setCalleeSavedStackSize(Size);
+}
+
+// Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions.
+// TODO: seems ok
+MachineBasicBlock::iterator MayFrameLowering::eliminateCallFramePseudoInstr(
+    MachineFunction &MF, MachineBasicBlock &MBB,
+    MachineBasicBlock::iterator MI) const {
+  Register SPReg = May::SP;
+  DebugLoc DL = MI->getDebugLoc();
+
+  if (!hasReservedCallFrame(MF)) {
+    // If space has not been reserved for a call frame, ADJCALLSTACKDOWN and
+    // ADJCALLSTACKUP must be converted to instructions manipulating the stack
+    // pointer. This is necessary when there is a variable length stack
+    // allocation (e.g. alloca), which means it's not possible to allocate
+    // space for outgoing arguments from within the function prologue.
+    int64_t Amount = MI->getOperand(0).getImm();
+
+    if (Amount != 0) {
+      // Ensure the stack remains aligned after adjustment.
+      Amount = alignSPAdjust(Amount);
+
+      if (MI->getOpcode() == May::ADJCALLSTACKDOWN)
+        Amount = -Amount;
+
+      adjustReg(MBB, MI, DL, SPReg, SPReg, Amount, MachineInstr::NoFlags);
+    }
+  }
+
+  return MBB.erase(MI);
+}
+
+
 bool MayFrameLowering::hasFP(const MachineFunction &MF) const {
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
 
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  return MF.getTarget().Options.DisableFramePointerElim(MF) || // -fomit-frame-pointer
-         RegInfo->hasStackRealignment(MF) || MFI.hasVarSizedObjects() ||
-         MFI.isFrameAddressTaken();
+  return MF.getTarget().Options.DisableFramePointerElim(
+             MF) || // -fomit-frame-pointer
+         RegInfo->hasStackRealignment(MF) ||
+         MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken();
+}
+
+bool MayFrameLowering::hasBP(const MachineFunction &MF) const {
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+
+  return MFI.hasVarSizedObjects() && TRI->hasStackRealignment(MF);
 }
 
 // TODO: rewrite!
@@ -124,7 +307,7 @@ MayFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   }
 
   if (FI >= MinCSFI && FI <= MaxCSFI) {
-    FrameReg = May::R1;
+    FrameReg = May::SP;
     Offset += MFI.getStackSize();
   } else if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
     // TODO: realigned stack

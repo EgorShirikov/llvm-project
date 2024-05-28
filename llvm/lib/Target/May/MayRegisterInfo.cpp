@@ -25,12 +25,6 @@ using namespace llvm;
 
 MayRegisterInfo::MayRegisterInfo() : MayGenRegisterInfo(May::R0) {}
 
-#if 0
-bool MayRegisterInfo::needsFrameMoves(const MachineFunction &MF) {
-  return MF.needsFrameMoves();
-}
-#endif
-
 const MCPhysReg *
 MayRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_May_SaveList;
@@ -41,10 +35,14 @@ BitVector MayRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   MayFrameLowering const *TFI = getFrameLowering(MF);
 
   BitVector Reserved(getNumRegs());
-  Reserved.set(May::R1);
+  Reserved.set(May::GP);
+  Reserved.set(May::SP);
 
   if (TFI->hasFP(MF)) {
-    Reserved.set(May::R2);
+    Reserved.set(May::FP);
+  }
+  if (TFI->hasBP(MF)) {
+    Reserved.set(May::BP);
   }
   return Reserved;
 }
@@ -54,12 +52,7 @@ bool MayRegisterInfo::requiresRegisterScavenging(
   return false; // TODO: what for?
 }
 
-#if 0
-bool MayRegisterInfo::useFPForScavengingIndex(
-    const MachineFunction &MF) const {
-  llvm_unreachable("");
-}
-#endif
+
 
 
 bool MayRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
@@ -89,7 +82,7 @@ bool MayRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 Register MayRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = getFrameLowering(MF);
-  return TFI->hasFP(MF) ? May::R2 : May::R1;
+  return TFI->hasFP(MF) ? May::FP : May::SP;;
 }
 
 const uint32_t *

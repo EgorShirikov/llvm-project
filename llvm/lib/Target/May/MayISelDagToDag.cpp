@@ -38,6 +38,10 @@ public:
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
 
+  bool SelectAddrFI(SDValue Addr, SDValue &Base);
+  bool SelectBaseAddr(SDValue Addr, SDValue &Base);
+
+
   void Select(SDNode *N) override;
 
   StringRef getPassName() const override {
@@ -52,6 +56,22 @@ public:
 
 char MayDAGToDAGISel::ID = 0;
 
+bool MayDAGToDAGISel::SelectAddrFI(SDValue Addr, SDValue &Base) {
+  if (auto *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
+    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
+    return true;
+  }
+  return false;
+}
+
+bool MayDAGToDAGISel::SelectBaseAddr(SDValue Addr, SDValue &Base) {
+  if (auto *FIN = dyn_cast<FrameIndexSDNode>(Addr))
+    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
+  else
+    Base = Addr;
+  return true;
+}
+
 /// This pass converts a legalized DAG into a May-specific DAG, ready for
 /// instruction scheduling.
 FunctionPass *llvm::createMayISelDag(MayTargetMachine &TM) {
@@ -64,6 +84,18 @@ void MayDAGToDAGISel::Select(SDNode *Node) {
     Node->setNodeId(-1);
     return;
   }
+  unsigned Opcode = Node->getOpcode();
   SDLoc DL(Node);
+  MVT VT = Node->getSimpleValueType(0);
+
+  switch (Opcode) {
+  case ISD::FrameIndex: {
+    SDValue Imm = CurDAG->getTargetConstant(0, DL, MVT::i32);
+    int FI = cast<FrameIndexSDNode>(Node)->getIndex();
+    SDValue TFI = CurDAG->getTargetFrameIndex(FI, VT);
+    ReplaceNode(Node, CurDAG->getMachineNode(May::ADDI, DL, VT, TFI, Imm));
+    return;
+  }
+  }
   SelectCode(Node);
 }

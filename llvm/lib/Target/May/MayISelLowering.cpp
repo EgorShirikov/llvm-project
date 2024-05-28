@@ -27,7 +27,7 @@
 
 using namespace llvm;
 
-static const MCPhysReg ArgGPRs[] = {May::R0, May::R1, May::R2, May::R3};
+static const MCPhysReg ArgGPRs[] = {May::RA, May::SP, May::FP, May::BP};
 
 void MayTargetLowering::ReplaceNodeResults(SDNode *N,
                                            SmallVectorImpl<SDValue> &Results,
@@ -42,7 +42,7 @@ MayTargetLowering::MayTargetLowering(const TargetMachine &TM,
 
   computeRegisterProperties(STI.getRegisterInfo());
 
-  setStackPointerRegisterToSaveRestore(May::R1);
+  setStackPointerRegisterToSaveRestore(May::SP);
 
   // setSchedulingPreference(Sched::Source);
 
@@ -51,6 +51,8 @@ MayTargetLowering::MayTargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::ADD, MVT::i32, Legal);
   setOperationAction(ISD::MUL, MVT::i32, Legal);
+  setOperationAction(ISD::SHL, MVT::i32, Legal);
+  setOperationAction(ISD::SRL, MVT::i32, Legal);
   // ...
   setOperationAction(ISD::LOAD, MVT::i32, Legal);
   setOperationAction(ISD::STORE, MVT::i32, Legal);
@@ -62,8 +64,10 @@ MayTargetLowering::MayTargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::FRAMEADDR, MVT::i32, Legal);
   setOperationAction(ISD::INTRINSIC_VOID, MVT::i32, Custom);
-  // setOperationAction(ISD::FrameIndex, MVT::i32, Custom);
-  // setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
+  setOperationAction(ISD::BR_CC, MVT::i32, Custom);
+  setOperationAction(ISD::SETCC, MVT::i32, Expand);
+  setOperationAction(ISD::SELECT, MVT::i32, Custom);
+  setOperationAction(ISD::SELECT_CC, MVT::i32, Custom);
 }
 
 const char *MayTargetLowering::getTargetNodeName(unsigned Opcode) const {
@@ -72,6 +76,8 @@ const char *MayTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "MayISD::CALL";
   case MayISD::RET:
     return "MayISD::RET";
+  case MayISD::SELECT_REG:
+    return "MayISD::SELECT_REG";
   }
   return nullptr;
 }
@@ -205,7 +211,7 @@ SDValue MayTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
       // Work out the address of the stack slot.
       if (!StackPtr.getNode())
-        StackPtr = DAG.getCopyFromReg(Chain, DL, May::R1, PtrVT);
+        StackPtr = DAG.getCopyFromReg(Chain, DL, May::SP, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
                       DAG.getIntPtrConstant(VA.getLocMemOffset(), DL));
@@ -610,4 +616,94 @@ bool MayTargetLowering::isLegalAddressingMode(const DataLayout &DL,
   }
 
   return true;
+}
+
+bool MayTargetLowering::mayBeEmittedAsTailCall(const CallInst *CI) const {
+  return false;
+}
+
+static void translateSetCCForBranch(const SDLoc &DL, SDValue &LHS, SDValue &RHS,
+                                    ISD::CondCode &CC, SelectionDAG &DAG) {
+  switch (CC) {
+  default:
+    break;
+  case ISD::SETLT:
+  case ISD::SETGE:
+    CC = ISD::getSetCCSwappedOperands(CC);
+    std::swap(LHS, RHS);
+    break;
+  }
+}
+
+SDValue MayTargetLowering::lowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue CC = Op.getOperand(1);
+  SDValue LHS = Op.getOperand(2);
+  SDValue RHS = Op.getOperand(3);
+  SDValue Block = Op->getOperand(4);
+  SDLoc DL(Op);
+
+  assert(LHS.getValueType() == MVT::i32);
+
+  ISD::CondCode CCVal = cast<CondCodeSDNode>(CC)->get();
+  translateSetCCForBranch(DL, LHS, RHS, CCVal, DAG);
+  SDValue TargetCC = DAG.getCondCode(CCVal);
+
+  return DAG.getNode(MayISD::BR_CC, DL, Op.getValueType(), Op.getOperand(0),
+                     LHS, RHS, TargetCC, Block);
+}
+
+SDValue MayTargetLowering::lowerFRAMEADDR(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  const MayRegisterInfo &RI = *STI.getRegisterInfo();
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MFI.setFrameAddressIsTaken(true);
+  Register FrameReg = RI.getFrameRegister(MF);
+  EVT VT = Op.getValueType();
+  SDLoc DL(Op);
+  SDValue FrameAddr = DAG.getCopyFromReg(DAG.getEntryNode(), DL, FrameReg, VT);
+  // Only for current frame
+  assert(cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue() == 0);
+  return FrameAddr;
+}
+
+SDValue MayTargetLowering::LowerOperation(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  MAY_DUMP_WHITE
+  switch (Op->getOpcode()) {
+  case ISD::BR_CC:
+    return lowerBR_CC(Op, DAG);
+  case ISD::FRAMEADDR:
+    return lowerFRAMEADDR(Op, DAG);
+    //  case ISD::SELECT:
+    //    return lowerSELECT(Op, DAG);
+  case ISD::SELECT:
+    return lowerSELECT(Op, DAG);
+  case ISD::SELECT_CC:
+    return lowerSELECT_CC(Op, DAG);
+  default:
+    llvm_unreachable("");
+  }
+}
+SDValue MayTargetLowering::lowerSELECT(SDValue Op, SelectionDAG &DAG) const
+{
+  return Op;
+}
+
+SDValue MayTargetLowering::lowerSELECT_CC(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  SDValue LHS = Op.getOperand(0);
+  SDValue RHS = Op.getOperand(1);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
+  SDValue TVal = Op.getOperand(2);
+  SDValue FVal = Op.getOperand(3);
+  SDLoc DL(Op);
+
+  assert(LHS.getValueType() == MVT::i32);
+
+  translateSetCCForBranch(DL, LHS, RHS, CC, DAG);
+  SDValue TargetCC = DAG.getCondCode(CC);
+  SDValue Cmp = DAG.getNode(MayISD::CMP, DL, MVT::Glue, LHS, RHS);
+
+  return DAG.getNode(MayISD::SELECT_REG, DL, TVal.getValueType(),TVal, FVal);
 }

@@ -1,13 +1,31 @@
 #ifndef LLVM_LIB_TARGET_MAY_MCTARGETDESC_MAYINFO_H
 #define LLVM_LIB_TARGET_MAY_MCTARGETDESC_MAYINFO_H
 
-#include "../../../../include/llvm/MC/MCInstrDesc.h"
+#include "llvm/MC/MCInstrDesc.h"
 
 namespace llvm {
+namespace MayCC {
+enum CondCode {
+  EQ,
+  NE,
+  LE,
+  GT,
+  LEU,
+  GTU,
+  INVALID,
+};
+
+CondCode getOppositeBranchCondition(CondCode);
+
+enum BRCondCode {
+  BREQ = 0x0,
+};
+}
 
 namespace MayOp {
 enum OperandType : unsigned {
-  OPERAND_MayM16 = MCOI::OPERAND_FIRST_TARGET,
+  OPERAND_SIMM16 = MCOI::OPERAND_FIRST_TARGET,
+  OPERAND_UIMM16
 };
 } // namespace MayOp
 

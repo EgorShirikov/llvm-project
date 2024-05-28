@@ -25,6 +25,7 @@ add_llvm_target(MayCodeGen
         MayMCInstrLower.cpp
 
         LINK_COMPONENTS
+        Analysis
         AsmPrinter
         CodeGen
         Core
@@ -34,6 +35,7 @@ add_llvm_target(MayCodeGen
         MC
         MayDesc
         SelectionDAG
+        GlobalISel
 
         ADD_TO_COMPONENT
         May

@@ -43,3 +43,17 @@ void MayInstPrinter::printOperand(const MCInst *MI, int OpNo, raw_ostream &O) {
   assert(MO.isExpr() && "Unknown operand kind in printOperand");
   MO.getExpr()->print(O, &MAI);
 }
+
+void MayInstPrinter::printBranchOperand(const MCInst *MI, uint64_t Address,
+                                         unsigned OpNo, raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNo);
+  if (!MO.isImm())
+    return printOperand(MI, OpNo, O);
+
+  if (PrintBranchImmAsAddress) {
+    uint32_t Target = Address + MO.getImm();
+    O << formatHex(static_cast<uint64_t>(Target));
+  } else {
+    O << MO.getImm();
+  }
+}

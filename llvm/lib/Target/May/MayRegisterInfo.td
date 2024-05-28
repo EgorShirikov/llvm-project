@@ -6,7 +6,7 @@ class MayReg<bits<16> Enc, string n> : Register<n>{
 
 // Registers
 foreach I = 0-15 in {
-    def R#I : MayReg<I, "r"#I>;
+    def R#I : MayReg<I, "r"#I>, DwarfRegNum<[I]>;
 }
 
 // Classes

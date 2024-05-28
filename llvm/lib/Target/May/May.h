@@ -38,6 +38,16 @@ namespace llvm {
 
   FunctionPass *createMayISelDag(MayTargetMachine &TM);
 
+  namespace May {
+  enum {
+    RA = May::R0,
+    SP = May::R1,
+    FP = May::R2,
+    BP = May::R3,
+    GP = May::R4,
+  };
+  } // namespace May
+
 } // namespace llvm
 
 

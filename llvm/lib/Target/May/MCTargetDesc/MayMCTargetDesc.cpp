@@ -27,7 +27,7 @@ using namespace llvm;
 static MCRegisterInfo *createMayMCRegisterInfo(const Triple &TT) {
   MAY_DUMP_MAGENTA
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitMayMCRegisterInfo(X, May::R0);
+  InitMayMCRegisterInfo(X, May::RA);
   return X;
 }
 
@@ -49,7 +49,7 @@ static MCAsmInfo *createMayMCAsmInfo(const MCRegisterInfo &MRI,
                                      const MCTargetOptions &Options) {
   MAY_DUMP_MAGENTA
   MCAsmInfo *MAI = new MayELFMCAsmInfo(TT);
-  unsigned SP = MRI.getDwarfRegNum(May::R1, true);
+  unsigned SP = MRI.getDwarfRegNum(May::SP, true);
   MCCFIInstruction Inst = MCCFIInstruction::cfiDefCfa(nullptr, SP, 0);
   MAI->addInitialFrameState(Inst);
   return MAI;
